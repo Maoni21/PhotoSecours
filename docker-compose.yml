@@ -3,10 +3,7 @@ version: '3.8'
 services:
   # Service API FastAPI
   backend:
-    build:
-      context: ./backend
-      dockerfile: ../docker/backend/Dockerfile
-    container_name: photosecours-api
+    build: ./backend
     ports:
       - "8000:8000"
     volumes:
@@ -14,84 +11,33 @@ services:
     environment:
       - MONGODB_URI=mongodb://mongodb:27017/photosecours
       - RABBITMQ_URI=amqp://rabbitmq:5672
-      - STORAGE_BUCKET_NAME=photosecours-images
     depends_on:
       - mongodb
       - rabbitmq
-    networks:
-      - photosecours-network
 
   # Service Frontend
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: ../docker/frontend/Dockerfile
-    container_name: photosecours-frontend
+    build: ./frontend
     ports:
       - "3000:3000"
     volumes:
       - './frontend:/app'
       - '/app/node_modules'
-    networks:
-      - photosecours-network
 
   # Base de données MongoDB
   mongodb:
     image: mongo:latest
-    container_name: photosecours-mongodb
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-    networks:
-      - photosecours-network
 
   # File d'attente RabbitMQ
   rabbitmq:
     image: rabbitmq:3-management
-    container_name: photosecours-rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - photosecours-network
-
-  # Service de traitement d'image
-  image-processor:
-    build:
-      context: ./backend
-      dockerfile: ../docker/image-processor/Dockerfile
-    container_name: photosecours-image-processor
-    environment:
-      - RABBITMQ_URI=amqp://rabbitmq:5672
-      - MONGODB_URI=mongodb://mongodb:27017/photosecours
-    depends_on:
-      - rabbitmq
-      - mongodb
-    networks:
-      - photosecours-network
-
-  # Service de recommandation
-  recommendation-service:
-    build:
-      context: ./backend
-      dockerfile: ../docker/recommendation-service/Dockerfile
-    container_name: photosecours-recommendation
-    environment:
-      - RABBITMQ_URI=amqp://rabbitmq:5672
-      - MONGODB_URI=mongodb://mongodb:27017/photosecours
-    depends_on:
-      - rabbitmq
-      - mongodb
-    networks:
-      - photosecours-network
 
 volumes:
   mongodb_data:
-  rabbitmq_data:
-
-networks:
-  photosecours-network:
-    driver: bridge

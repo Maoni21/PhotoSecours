@@ -1,0 +1,104 @@
+# Fichier .gitignore pour PhotoSecours
+
+# --- Backend (Python) ---
+
+# Environnements virtuels
+venv/
+.venv/
+env/
+ENV/
+virtualenv/
+
+# Cache Python et fichiers compilés
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Fichiers de couverture de test et résultats
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# --- Frontend (React) ---
+
+# Dépendances
+frontend/node_modules/
+node_modules/
+/.pnp
+.pnp.js
+
+# Tests
+/coverage
+
+# Production
+frontend/build/
+build/
+
+# Divers
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- Docker ---
+.docker/
+
+# --- Base de données ---
+mongodb_data/
+*.mongodb
+
+# --- Fichiers uploadés ---
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+
+# --- Modèles IA ---
+*.pt
+*.pth
+*.bin
+*.h5
+*.onnx
+*.model
+
+# --- Systèmes d'édition ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
