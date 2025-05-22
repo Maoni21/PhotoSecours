@@ -1,43 +1,34 @@
-version: '3.8'
-
 services:
-  # Service API FastAPI
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - uploads:/app/uploads
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/photosecours
-      - RABBITMQ_URI=amqp://rabbitmq:5672
-    depends_on:
-      - mongodb
-      - rabbitmq
+      - ENVIRONMENT=development
+    # Ajouter un healthcheck pour s'assurer que le backend est bien démarré
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s  # Période initiale étendue pour permettre l'installation des dépendances
+    restart: unless-stopped
 
-  # Service Frontend
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "3000:3000"
-    volumes:
-      - './frontend:/app'
-      - '/app/node_modules'
-
-  # Base de données MongoDB
-  mongodb:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb_data:/data/db
-
-  # File d'attente RabbitMQ
-  rabbitmq:
-    image: rabbitmq:3-management
-    ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy  # Attendre que le backend soit opérationnel
+    restart: unless-stopped
 
 volumes:
-  mongodb_data:
+  uploads:
