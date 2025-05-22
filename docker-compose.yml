@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   backend:
     build:
@@ -10,14 +12,23 @@ services:
       - uploads:/app/uploads
     environment:
       - ENVIRONMENT=development
-    # Ajouter un healthcheck pour s'assurer que le backend est bien démarré
+      - TOKENIZERS_PARALLELISM=false
+      - OMP_NUM_THREADS=1
+    # Healthcheck adapté pour BLIP
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "python", "/app/healthcheck.py"]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 5
-      start_period: 120s  # Période initiale étendue pour permettre l'installation des dépendances
+      start_period: 300s  # 5 minutes pour permettre le chargement des modèles BLIP
     restart: unless-stopped
+    # Limite de mémoire pour éviter les problèmes avec les modèles IA
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
 
   frontend:
     build:
@@ -27,7 +38,7 @@ services:
       - "3000:80"
     depends_on:
       backend:
-        condition: service_healthy  # Attendre que le backend soit opérationnel
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
