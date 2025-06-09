@@ -1,10 +1,9 @@
-# services/skincare_analysis.py
+# services/skincare_analysis.py - Version mémoire sans fichiers
 from PIL import Image
 import cv2
 import numpy as np
 from transformers import CLIPProcessor, CLIPModel
 import torch
-import os
 import logging
 
 # Configuration du logging
@@ -62,13 +61,14 @@ class SkincareAnalyzer:
 
             logger.info("Modèle CLIP chargé avec succès")
 
-    async def preprocess_face_image(self, image_path):
-        """Prétraitement spécialisé pour l'analyse du visage/peau"""
+    def preprocess_pil_image(self, pil_image: Image.Image, analysis_id: str):
+        """Prétraitement d'une image PIL directement en mémoire"""
         try:
-            # Charger l'image
-            img = cv2.imread(image_path)
-            if img is None:
-                raise ValueError(f"Impossible de charger l'image: {image_path}")
+            # Convertir PIL en array numpy pour OpenCV
+            img_array = np.array(pil_image)
+            img = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+
+            logger.info(f"Image originale: {img.shape}")
 
             # Détection de visage pour cropper la zone d'intérêt
             face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -86,7 +86,7 @@ class SkincareAnalyzer:
                 y2 = min(img.shape[0], y + h + margin)
 
                 img = img[y1:y2, x1:x2]
-                logger.info("Visage détecté et cropé pour l'analyse")
+                logger.info(f"Visage détecté et cropé pour l'analyse: {img.shape}")
 
             # Redimensionner
             target_size = 224  # Taille optimale pour CLIP
@@ -104,44 +104,48 @@ class SkincareAnalyzer:
             enhanced_img = cv2.merge((cl, a, b))
             enhanced_img = cv2.cvtColor(enhanced_img, cv2.COLOR_LAB2BGR)
 
-            # Sauvegarder l'image prétraitée
-            processed_path = image_path.replace(".", "_skincare_processed.")
-            cv2.imwrite(processed_path, enhanced_img)
+            # Reconvertir en PIL pour CLIP
+            enhanced_img_rgb = cv2.cvtColor(enhanced_img, cv2.COLOR_BGR2RGB)
+            processed_pil = Image.fromarray(enhanced_img_rgb)
 
-            return processed_path
+            logger.info(f"Image prétraitée: {processed_pil.size} (ID: {analysis_id})")
+            return processed_pil
 
         except Exception as e:
             logger.error(f"Erreur lors du prétraitement: {str(e)}")
-            return image_path
+            # Retourner l'image originale en cas d'erreur
+            return pil_image
 
-    async def analyze_skin(self, image_path):
-        """Analyse la peau avec CLIP pour déterminer type et problèmes"""
+    async def analyze_skin_from_memory(self, pil_image: Image.Image, analysis_id: str):
+        """Analyse la peau avec CLIP directement depuis une image PIL"""
         try:
             # Charger le modèle
             self.load_model()
 
             # Prétraitement
-            processed_path = await self.preprocess_face_image(image_path)
-
-            # Charger l'image pour CLIP
-            image = Image.open(processed_path).convert('RGB')
+            processed_image = self.preprocess_pil_image(pil_image, analysis_id)
 
             # Analyser le type de peau
-            skin_type = await self._classify_image(image, self.skin_types, "Type de peau")
+            skin_type = await self._classify_image(processed_image, self.skin_types, "Type de peau")
 
             # Analyser les problèmes de peau
-            skin_problems = await self._detect_multiple_conditions(image, self.skin_problems, "Problèmes détectés", threshold=0.3)
+            skin_problems = await self._detect_multiple_conditions(processed_image, self.skin_problems, "Problèmes détectés", threshold=0.3)
 
             # Analyser l'état général
-            skin_condition = await self._classify_image(image, self.skin_conditions, "État de la peau")
+            skin_condition = await self._classify_image(processed_image, self.skin_conditions, "État de la peau")
 
             # Compiler les résultats
             analysis_result = {
                 "skin_type": skin_type,
                 "problems_detected": skin_problems,
                 "skin_condition": skin_condition,
-                "confidence_note": "Analyse basée sur l'intelligence artificielle. Pour un diagnostic précis, consultez un dermatologue."
+                "confidence_note": "Analyse basée sur l'intelligence artificielle CLIP. Traitement 100% en mémoire pour une confidentialité maximale. Pour un diagnostic précis, consultez un dermatologue.",
+                "processing_method": "in_memory",
+                "analysis_id": analysis_id
             }
+
+            # Nettoyage mémoire
+            del processed_image
 
             return analysis_result
 
@@ -149,12 +153,15 @@ class SkincareAnalyzer:
             logger.error(f"Erreur lors de l'analyse: {str(e)}")
             return {
                 "error": f"Erreur lors de l'analyse: {str(e)}",
-                "skin_type": "indéterminé",
+                "skin_type": {"category": "indéterminé", "confidence": 0.0, "all_scores": {}},
                 "problems_detected": [],
-                "skin_condition": "indéterminé"
+                "skin_condition": {"category": "indéterminé", "confidence": 0.0, "all_scores": {}},
+                "confidence_note": "Erreur lors de l'analyse. Veuillez réessayer.",
+                "processing_method": "in_memory_error",
+                "analysis_id": analysis_id
             }
 
-    async def _classify_image(self, image, categories, category_name):
+    async def _classify_image(self, image: Image.Image, categories, category_name):
         """Classifie l'image parmi les catégories données"""
         try:
             # Préparer les inputs
@@ -187,7 +194,7 @@ class SkincareAnalyzer:
             logger.error(f"Erreur lors de la classification {category_name}: {str(e)}")
             return {"category": "indéterminé", "confidence": 0.0, "all_scores": {}}
 
-    async def _detect_multiple_conditions(self, image, conditions, category_name, threshold=0.25):
+    async def _detect_multiple_conditions(self, image: Image.Image, conditions, category_name, threshold=0.25):
         """Détecte plusieurs conditions simultanément avec un seuil"""
         try:
             detected = []
@@ -228,7 +235,23 @@ class SkincareAnalyzer:
 # Instance globale
 skincare_analyzer = SkincareAnalyzer()
 
-# Fonction wrapper pour l'API
+# Nouvelle fonction pour traitement en mémoire
+async def analyze_skincare_from_memory(pil_image: Image.Image, analysis_id: str):
+    """Fonction wrapper pour l'analyse skincare en mémoire"""
+    return await skincare_analyzer.analyze_skin_from_memory(pil_image, analysis_id)
+
+# Ancienne fonction pour compatibilité (si besoin)
 async def analyze_skincare(image_path):
-    """Fonction wrapper pour l'analyse skincare"""
-    return await skincare_analyzer.analyze_skin(image_path)
+    """Fonction wrapper pour l'analyse skincare depuis un fichier (deprecated)"""
+    try:
+        pil_image = Image.open(image_path).convert('RGB')
+        analysis_id = "file_based_analysis"
+        return await skincare_analyzer.analyze_skin_from_memory(pil_image, analysis_id)
+    except Exception as e:
+        logger.error(f"Erreur lors de l'analyse depuis fichier: {str(e)}")
+        return {
+            "error": str(e),
+            "skin_type": {"category": "indéterminé", "confidence": 0.0},
+            "problems_detected": [],
+            "skin_condition": {"category": "indéterminé", "confidence": 0.0}
+        }
