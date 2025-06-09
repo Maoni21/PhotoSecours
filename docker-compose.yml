@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build:
@@ -9,7 +7,6 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - uploads:/app/uploads
     environment:
       - ENVIRONMENT=development
       - TOKENIZERS_PARALLELISM=false
@@ -20,15 +17,14 @@ services:
       interval: 30s
       timeout: 15s
       retries: 5
-      start_period: 300s  # 5 minutes pour permettre le chargement des modèles BLIP
+      start_period: 240s
     restart: unless-stopped
-    # Limite de mémoire pour éviter les problèmes avec les modèles IA
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 3G
         reservations:
-          memory: 2G
+          memory: 1.5G
 
   frontend:
     build:
@@ -36,10 +32,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
-
-volumes:
-  uploads:
