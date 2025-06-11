@@ -802,9 +802,6 @@ const App = () => {
             </div>
           </div>
 
-          {/* Background decorative elements */}
-          <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-purple-100/50 to-transparent"></div>
-          <div className="absolute bottom-0 left-0 w-1/3 h-1/2 bg-gradient-to-t from-pink-100/30 to-transparent"></div>
         </div>
 
         {/* Features Section */}
